@@ -27,7 +27,10 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let app = Router::new()
-        .nest("/", get(get_handler).post(post_handler))
+        .nest(
+            "/",
+            get(get_handler).post(post_handler).options(options_handler),
+        )
         .layer(TraceLayer::new_for_http())
         .check_infallible();
 
@@ -144,6 +147,7 @@ where
 }
 
 enum QRResponse {
+    Cors,
     Plain(String),
     Html(String),
     Svg(String),
@@ -158,12 +162,35 @@ impl IntoResponse for QRResponse {
 
     fn into_response(self) -> Response<Self::Body> {
         match self {
+            Self::Cors => {
+                let mut res = Response::new("".into());
+
+                res.headers_mut().insert(
+                    header::ACCESS_CONTROL_ALLOW_METHODS,
+                    HeaderValue::from_static("HEAD, POST, GET, OPTIONS"),
+                );
+
+                res.headers_mut().insert(
+                    header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                    HeaderValue::from_static("*"),
+                );
+
+                res.headers_mut().insert(
+                    header::ACCESS_CONTROL_ALLOW_HEADERS,
+                    HeaderValue::from_static("*"),
+                );
+
+
+                res
+            }
+
             Self::Plain(text) => {
                 let mut res = Response::new(text.into());
                 res.headers_mut().insert(
                     header::CONTENT_TYPE,
                     HeaderValue::from_static("text/plain"),
                 );
+
                 res
             }
 
@@ -244,6 +271,10 @@ fn generate(bytes: &[u8], gen: &Generator) -> Result<QRResponse, StatusCode> {
             String::from_utf8_lossy(&image).to_string(),
         )),
     }
+}
+
+async fn options_handler() -> Result<QRResponse, StatusCode> {
+    Ok(QRResponse::Cors)
 }
 
 async fn post_handler(

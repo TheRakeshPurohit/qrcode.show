@@ -122,6 +122,18 @@ pub async fn main(mut req: Request, _env: Env) -> Result<Response> {
     // functionality and a `RouteContext` which you can use to  and get route parameters and
     // Environment bindings like KV Stores, Durable Objects, Secrets, and Variables.
     match req.method() {
+        Method::Options => {
+            let mut headers = Headers::new();
+            headers.set(
+                "Access-Control-Allow-Methods",
+                "HEAD, POST, GET, OPTIONS",
+            )?;
+            headers.set("Access-Control-Allow-Origin", "*")?;
+            headers.set("Access-Control-Allow-Headers", "*")?;
+
+            Response::empty().map(|r| r.with_headers(headers))
+        }
+
         Method::Post => {
             let bytes = req.bytes().await.unwrap();
 
